@@ -12,6 +12,7 @@
 
 #include "../espurna.h"
 #include "../sensor.h"
+#include "../analog_inputs.h"
 
 #include "BaseSensor.h"
 #include "BaseAnalogSensor.h"
@@ -63,6 +64,9 @@ class AnalogSensor : public BaseAnalogSensor {
             _pin = pin;
         }
 
+        void setInDevice(uint8_t in_device){
+            _in_device = in_device;
+        }
         // ---------------------------------------------------------------------
 
         size_t getSamples() const {
@@ -125,7 +129,11 @@ class AnalogSensor : public BaseAnalogSensor {
 
     protected:
         double _sampledVoltageValue() const {
-            return _value / RawMax;
+            return _valueVolt;
+        }
+
+        void _sampledVoltageValue(double value) {
+            _valueVolt = value;
         }
 
         double _sampledValue() const {
@@ -145,18 +153,30 @@ class AnalogSensor : public BaseAnalogSensor {
             if (now - _last < _delay) {
                 return;
             }
+            
+            _error = 0;
+           AnalogInputResult result = AnalogInputs::Inst()->analogRead(_in_device,_pin);
+           if (result.error){
+                _error = result.error;
+                return;
+           }
 
-            ++_sample;
-            _last = now;
-            _sum += ::analogRead(pin);
+           ++_sample;
+           _last = now;
+           _sum += result.raw_value;
+           _sumVolt += result.voltage;
+           
 
-            if (_sample >= _samples) {
-                const double sum = _sum;
-                const double samples = _samples;
-                _sampledValue(sum / samples);
-                _sum = 0;
-                _sample = 0;
-            }
+           if (_sample >= _samples) {
+               const double sum = _sum;
+               const double samples = _samples;
+               const double sumVolt = _sumVolt;
+               _sampledValue(sum / samples);
+               _sampledVoltageValue(sumVolt/samples);
+               _sum = 0;
+               _sumVolt = 0.0;
+               _sample = 0;
+           }
         }
 
         double _withFactor(double value) const {
@@ -178,14 +198,19 @@ class AnalogSensor : public BaseAnalogSensor {
         size_t _samples { SamplesMin };
         size_t _sample { 0 };
 
+        //NOTE: unsigneds? certain sensors/adc can generate negative values
         uint32_t _sum { 0 };
+        double _sumVolt { 0 };
+        
 
         double _value { 0.0 };
+        double _valueVolt { 0.0 };
 
         double _factor { 1.0 };
         double _offset { 0.0 };
 
         uint8_t _pin { A0 };
+        uint8_t _in_device { 0};
 };
 
 #ifndef __cpp_inline_variables
