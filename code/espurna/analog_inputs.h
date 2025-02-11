@@ -150,19 +150,17 @@ struct ADS1115Config
     uint8_t error;
 
     bool configured;
-    // TODO: delay? current channel?
 };
 
 struct MUXConfig
-
 {
 
     std::vector<uint8_t> gpios;
     Delay delay;
     uint8_t error;
     bool configured;
-    // TODO: delay? current channel?
 };
+
 // Singleton
 class AnalogInputs
 {
@@ -182,15 +180,48 @@ public:
     {
         _inst = custom;
     }
-    // called from main
+    
+    // Helper ; TODO find a better place for it
+    std::vector<String> splitConfig(String str)
+    {
+        return splitConfig(str,',');
+    }
+    std::vector<String> splitConfig(String str,char separator)
+    {
+        if (str == nullptr)
+            str = "";
+        std::vector<String> strings;
+        //char separator = ',';
+        uint startIndex = 0, endIndex = 0;
+        for (uint i = 0; i <= str.length(); i++)
+        {
+
+            // If we reached the end of the word or the end of the input.
+            if (str[i] == separator || i == str.length())
+            {
+                endIndex = i;
+                String temp;
+                temp = str.substring(startIndex, endIndex);
+                strings.push_back(temp);
+                startIndex = endIndex + 1;
+            }
+        }
+        return strings;
+    }
+    // called from sensor.cpp before loads sensors
     void setup()
     {
         using namespace espurna::settings::internal;
         String config;
-        // FORMAT:analogMux=DelayBeforeRead(Microsecs),GPIO0,GPIO1....
+        //FORMAT: analogMux=DelayBeforeRead(Microsecs),GPIO0,GPIO1....
         config = getSetting("analogMux");
         setupMUX(splitConfig(config));
 
+        //FORMAT: ADS1115xxx= f=delay,datarate,gain, mode
+        //delay=int, microsecs, currently not used
+        //datarate= 0..7; 0= 8 SPS, 1 = 16 SPS...7= 860 SPS
+        //gain= 0..5; 0 = +-6.144 V, 1 = +-4.096 V... +-5=0.256 V
+        //mode= 0 continuous 1 single shot, currently not used; always in mode single shot
         config = getSetting("ADS1115GND");
         ads1115gnd = createADS1115Config(splitConfig(config));
         ads1115gnd.address = ADS1115_GND_ADDRESS;
@@ -287,7 +318,6 @@ public:
     AnalogInputResult analogRead(uint8_t device_id, uint8_t pin)
     {
         AnalogInputResult result;
-        // TODO:Depending on the device ID, reading is forwarded to pin A0, i2c (ADS115), etc...
         // IMPORTANT: also calculate the voltage
         // if (device_id == IN_DEVICE_ESP8266_ID)
         //	normal read via ::analogRead
@@ -322,7 +352,7 @@ public:
             return analogReadADS1115(ads1115scl, pin);
         }
 
-        result.error = 1; // TODO: analog device not defined
+        result.error = SENSOR_ERROR_SUPPORT; //analog device not defined
 
         return result;
     }
@@ -335,6 +365,7 @@ protected:
         result.error = 0;
         result.raw_value = ::analogRead(pin);
         result.voltage = result.raw_value / AnalogInputs::RawMax8266;
+        return result;
     }
     AnalogInputResult analogReadMUX(uint8_t pin)
     {
@@ -343,12 +374,12 @@ protected:
         result.error = 0;
         if (!mux.configured)
         {
-            result.error = 1; // TODO: error mux not configured
+            result.error = SENSOR_ERROR_CONFIG; //error mux not configured
             return result;
         }
         if (mux.error)
         {
-            result.error = mux.error; // configuration error in mux
+            result.error = mux.error; //configuration error in mux
             return result;
         }
 
@@ -369,7 +400,7 @@ protected:
         // TODO:
         // If pin >0 -> error
 
-        // delay before analog Read?
+        // delay before analog Read
         espurna::time::critical::delay(mux.delay);
 
         result.raw_value = ::analogRead(0); // 0 or A0?
@@ -383,7 +414,7 @@ protected:
 
         if (!config.configured)
         {
-            result.error = 1; // TODO: error ads1115 not configured
+            result.error = SENSOR_ERROR_CONFIG; // error ads1115 not configured
             return result;
         }
         if (config.error)
@@ -393,7 +424,7 @@ protected:
         }
         if (pin > 3)
         {
-            result.error = 1; // TODO: error ads1115 channel incorrect
+            result.error = SENSOR_ERROR_OTHER; // error ads1115 channel incorrect
             return result;
         }
 
@@ -557,29 +588,6 @@ protected:
     ADS1115Config ads1115sda;
     ADS1115Config ads1115scl;
 
-    // Helper
-    std::vector<String> splitConfig(String str)
-    {
-        if (str == nullptr)
-            str = "";
-        std::vector<String> strings;
-        char separator = ',';
-        uint startIndex = 0, endIndex = 0;
-        for (uint i = 0; i <= str.length(); i++)
-        {
-
-            // If we reached the end of the word or the end of the input.
-            if (str[i] == separator || i == str.length())
-            {
-                endIndex = i;
-                String temp;
-                temp = str.substring(startIndex, endIndex);
-                strings.push_back(temp);
-                startIndex = endIndex + 1;
-            }
-        }
-        return strings;
-    }
 };
 
 AnalogInputs *AnalogInputs::_inst = nullptr;
@@ -594,7 +602,7 @@ AnalogInputs *AnalogInputs::Inst()
     return AnalogInputs::_inst;
 }
 
-AnalogInputs *_i = AnalogInputs::createInst();
+//AnalogInputs *_i = AnalogInputs::createInst();
 
 #ifndef __cpp_inline_variables
 constexpr int AnalogInputs::RawBits8266;

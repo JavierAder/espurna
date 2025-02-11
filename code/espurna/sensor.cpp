@@ -38,6 +38,14 @@ Copyright (C) 2020-2022 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 #include "sensors/BaseAnalogEmonSensor.h"
 #include "sensors/BaseAnalogSensor.h"
 
+#if ANALOG_INPUTS_SUPPORT
+    #include "analog_inputs.h"
+#endif
+
+#if RAW_ANALOG_SENSOR_SUPPORT
+    #include "sensors/RawAnalogSensor.h"
+#endif
+
 #if DUMMY_SENSOR_SUPPORT
     #include "sensors/DummySensor.h"
 #endif
@@ -1942,6 +1950,25 @@ size_t count() {
 // - update config/custom.h or config/sensor.h, adding `#define DHT2_PIN ...` and `#define DHT2_TYPE ...`
 
 void load() {
+
+#if ANALOG_INPUTS_SUPPORT
+    {
+        AnalogInputs * ai = AnalogInputs::createInst();
+        ai->setup();
+    }
+#endif
+
+#if RAW_ANALOG_SENSOR_SUPPORT
+    {
+        RawAnalogSensorConfig* rac = new RawAnalogSensorConfig();
+        std::vector<RawAnalogSensor *> rass = rac->getSensors();
+        for (RawAnalogSensor* ras : rass)
+        {
+            add(ras);
+        }
+    }
+#endif
+
 #if A02YYU_SUPPORT
     {
         const auto port = uartPort(A02YYU_PORT - 1);
@@ -1956,6 +1983,7 @@ void load() {
         add(sensor);
     }
 #endif
+
 #if AM2320_SUPPORT
     {
         auto* sensor = new AM2320Sensor();
