@@ -143,7 +143,7 @@ struct ADS1115Config
 {
     uint8_t address; // i2c address
 
-    uint16_t datarate;
+    uint8_t datarate;
     uint8_t mode;
     uint8_t gain;
     Delay delay;
@@ -180,18 +180,17 @@ public:
     {
         _inst = custom;
     }
-    
+
     // Helper ; TODO find a better place for it
     std::vector<String> splitConfig(String str)
     {
-        return splitConfig(str,',');
+        return splitConfig(str, ',');
     }
-    std::vector<String> splitConfig(String str,char separator)
+    std::vector<String> splitConfig(String str, char separator)
     {
         if (str == nullptr)
             str = "";
         std::vector<String> strings;
-        //char separator = ',';
         uint startIndex = 0, endIndex = 0;
         for (uint i = 0; i <= str.length(); i++)
         {
@@ -213,15 +212,15 @@ public:
     {
         using namespace espurna::settings::internal;
         String config;
-        //FORMAT: analogMux=DelayBeforeRead(Microsecs),GPIO0,GPIO1....
+        // FORMAT: analogMux=DelayBeforeRead(Microsecs),GPIO0,GPIO1....
         config = getSetting("analogMux");
         setupMUX(splitConfig(config));
 
-        //FORMAT: ADS1115xxx= f=delay,datarate,gain, mode
-        //delay=int, microsecs, currently not used
-        //datarate= 0..7; 0= 8 SPS, 1 = 16 SPS...7= 860 SPS
-        //gain= 0..5; 0 = +-6.144 V, 1 = +-4.096 V... +-5=0.256 V
-        //mode= 0 continuous 1 single shot, currently not used; always in mode single shot
+        // FORMAT: ADS1115xxx= f=delay,datarate,gain, mode
+        // delay=int, microsecs, currently not used
+        // datarate= 0..7; 0= 8 SPS, 1 = 16 SPS...7= 860 SPS
+        // gain= 0..5; 0 = +-6.144 V, 1 = +-4.096 V... +-5=0.256 V
+        // mode= 0 continuous 1 single shot, currently not used; always in mode single shot
         config = getSetting("ADS1115GND");
         ads1115gnd = createADS1115Config(splitConfig(config));
         ads1115gnd.address = ADS1115_GND_ADDRESS;
@@ -352,7 +351,7 @@ public:
             return analogReadADS1115(ads1115scl, pin);
         }
 
-        result.error = SENSOR_ERROR_SUPPORT; //analog device not defined
+        result.error = SENSOR_ERROR_SUPPORT; // analog device not defined
 
         return result;
     }
@@ -374,12 +373,12 @@ protected:
         result.error = 0;
         if (!mux.configured)
         {
-            result.error = SENSOR_ERROR_CONFIG; //error mux not configured
+            result.error = SENSOR_ERROR_CONFIG; // error mux not configured
             return result;
         }
         if (mux.error)
         {
-            result.error = mux.error; //configuration error in mux
+            result.error = mux.error; // configuration error in mux
             return result;
         }
 
@@ -431,9 +430,22 @@ protected:
         startADCReadingADS1115(config, pin, /*continuous=*/false);
 
         // Wait for the conversion to complete
+        uint16_t timeout = getReadTimeoutADS1115(config.datarate);
+        // getReadTimeout returns, say, 16 mls for datarate 128, 4 mls for datarate 826
+        int16_t delayBetweenChecks = timeout / 4;
+        unsigned long firstCheck = ::millis();
         while (!conversionCompleteADS1115(config))
         {
-            ; // TODO; How long to wait before detecting a read error?
+             unsigned long now = ::millis();
+            if ((now - firstCheck ) > timeout)
+            {
+                result.error = SENSOR_ERROR_TIMEOUT;
+                return result;
+            }
+            else
+            {
+                ::delay(delayBetweenChecks);
+            }
         }
 
         // Read the conversion results
@@ -441,7 +453,7 @@ protected:
 
         result.error = 0;
         result.raw_value = raw;
-        result.voltage = computeVolts(gainToBits(config.gain),raw);
+        result.voltage = computeVolts(gainToBits(config.gain), raw);
 
         return result;
     }
@@ -498,6 +510,7 @@ protected:
         return (i2c_read_uint16(config.address, ADS1X15_REG_POINTER_CONFIG) & 0x8000) != 0;
     }
 
+
     int16_t getLastConversionResultsADS1115(ADS1115Config config)
     {
         // Read the conversion results
@@ -505,7 +518,33 @@ protected:
         uint16_t res = i2c_read_uint16(config.address, ADS1X15_REG_POINTER_CONVERT);
         return (int16_t)res;
     }
+    // timeout in milliseconds for reading ADS1115 before assume error (connection i2c, etc)
+    //depends on datarate, currently only for oneshot mode
+    uint16_t getReadTimeoutADS1115(uint8_t datarate)
+    {
+        switch (datarate)
+        {
+        case 0:
+            return 150; //RATE_ADS1115_8SPS, 8 sps, 1 sample =125 mls;
+        case 1:
+            return 100; //RATE_ADS1115_16SPS, 16 sps, 1 sample 62.5 nls;
+        case 2:
+            return 60; //RATE_ADS1115_32SPS, 32 sps, 1 sample 32.25 mls;
+        case 3:
+            return 30; //RATE_ADS1115_64SPS; 64 sps, 1 sample 15.625 mls
+        case 4:
+            return 20; //RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
+        case 5:
+            return  10; //RATE_ADS1115_250SPS; 250 sps, 1 sample 4 mls
+        case 6:
+            return 5; //RATE_ADS1115_475SPS; 475 sps, 1 sample 2.11 mls
+        case 7:
+            return 4; //RATE_ADS1115_860SPS; 860 sps, 1 sample 1.16 mls
+        }
+        return 20; //RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
 
+
+    }
     float computeVolts(adsGain_t gain, int16_t counts)
     {
         // see data sheet Table 3
@@ -587,7 +626,6 @@ protected:
     ADS1115Config ads1115vdd;
     ADS1115Config ads1115sda;
     ADS1115Config ads1115scl;
-
 };
 
 AnalogInputs *AnalogInputs::_inst = nullptr;
@@ -602,7 +640,6 @@ AnalogInputs *AnalogInputs::Inst()
     return AnalogInputs::_inst;
 }
 
-//AnalogInputs *_i = AnalogInputs::createInst();
 
 #ifndef __cpp_inline_variables
 constexpr int AnalogInputs::RawBits8266;
