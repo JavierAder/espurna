@@ -233,6 +233,10 @@ Copyright (C) 2020-2022 by Maxim Prokhorov <prokhorov dot max at outlook dot com
     #include "sensors/PZEM004TV30Sensor.h"
 #endif
 
+#if NTC_MUX_SENSOR_SUPPORT
+    #include "sensors/NTCMuxSensor.h"
+#endif
+
 #include "filters/LastFilter.h"
 #include "filters/MaxFilter.h"
 #include "filters/MedianFilter.h"
@@ -2551,6 +2555,21 @@ void load() {
         add(sensor);
     }
 #endif
+
+#if NTC_MUX_SENSOR_SUPPORT
+    {
+       
+       //Add all sensors NTC 
+       NTCMuxSensorConfig c;
+       std::vector<NTCMuxSensor *> ntcSensors = c.getSensors();
+       for (std::size_t i = 0; i < ntcSensors.size(); i++) {
+            NTCMuxSensor* sensor = ntcSensors[i];
+            add(sensor);
+        }
+ 
+    }
+#endif
+
 }
 
 namespace units {

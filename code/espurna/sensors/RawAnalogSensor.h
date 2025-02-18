@@ -14,7 +14,7 @@ public:
 
     unsigned char id() const override
     {
-        return 123; // TODO
+        return SENSOR_RAW_ANALOG_ID;
     }
 
     unsigned char count() const override
@@ -24,7 +24,7 @@ public:
     // Descriptive name of the sensor
     String description() const override
     {
-        return F("Raw Analog Sensor");
+        return "Raw Analog Sensor Dev: " + String(_in_device) + " Pin:" + String(_pin);
     }
 
 

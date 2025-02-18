@@ -333,7 +333,8 @@
 #define SENSOR_PM1006_ID            44
 #define SENSOR_INA219_ID            45
 #define SENSOR_A02YYU_ID            46
-
+#define SENSOR_RAW_ANALOG_ID        100
+#define SENSOR_NTC_MUX_ID           101
 //--------------------------------------------------------------------------------
 // Magnitudes
 // These should remain over time, do not modify their values, only add new ones at the end
