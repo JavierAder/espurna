@@ -8,10 +8,7 @@
 class RawAnalogSensor : public AnalogSensor
 {
 public:
-    RawAnalogSensor()
-    {
-    }
-
+   
     unsigned char id() const override
     {
         return SENSOR_RAW_ANALOG_ID;
@@ -24,7 +21,11 @@ public:
     // Descriptive name of the sensor
     String description() const override
     {
-        return "Raw Analog Sensor Dev: " + String(_in_device) + " Pin:" + String(_pin);
+        char buffer[34];
+        snprintf_P(buffer, sizeof(buffer),
+                PSTR("Raw Analog Sensor Dev: %2d Pin: %2d"), _in_device, _pin);
+            return String(buffer);
+
     }
 
 
@@ -94,15 +95,19 @@ public:
         String configSensors;
         // FORMAT:rawAnalogSensors=analog_devide_id1,channel1,mult1;analog_devide_id2,channel2,mult2;...
         configSensors = getSetting("rawAnalogSensors");
-        std::vector<String> configs = AnalogInputs::Inst()->splitConfig(configSensors, ';');
+        DEBUG_MSG_P( PSTR("rawAnalogSensors: %s\n"), configSensors.c_str());
 
-        for (auto config : configs)
+        std::vector<String> configs = AnalogInputs::Inst()->splitConfig(configSensors, ';');
+        DEBUG_MSG_P( PSTR("rawAnalogSensors Configs number: %d\n"), configs.size());
+
+        for (String config : configs)
         {
+            DEBUG_MSG_P( PSTR("rawAnalogSensors Config: %s\n"), config.c_str());
+
             std::vector<String> dataSensor = AnalogInputs::Inst()->splitConfig(config);
             if (dataSensor.size() != 3)
             {
-                // error:wrong number of items in config string
-                // TODO: print debug?
+                DEBUG_MSG_P( PSTR("Incorrect number of parameters in configuration\n"));
                 continue;
             }
             int device_id = convert<int>(dataSensor[0]);

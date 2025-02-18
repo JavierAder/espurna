@@ -17,7 +17,10 @@ public:
   // Descriptive name of the sensor
   String description() const override
   {
-    return "NTCMux Dev: " + String(_in_device) + " Pin:" + String(_pin);
+    char buffer[31];
+    snprintf_P(buffer, sizeof(buffer),
+      PSTR("NTC Mux Sensor Dev: %2d Pin: %2d"), _in_device, _pin);
+    return String(buffer);
   }
 };
 
@@ -67,13 +70,14 @@ public:
     using namespace espurna::settings::internal;
     std::vector<String> allConfigs = getAllConfig();
 
-    for (auto config : allConfigs)
+    for (String config : allConfigs)
     {
+      DEBUG_MSG_P( PSTR("ntcMuxSensor Config: %s\n"), config.c_str());
+
       std::vector<String> dataSensor = AnalogInputs::Inst()->splitConfig(config);
       if (dataSensor.size() != 10)
       {
-        // error:wrong number of items in config string
-        // TODO: print debug?
+        DEBUG_MSG_P( PSTR("Incorrect number of parameters in configuration\n"));
         continue;
       }
       NTCMuxSensor *sensor = new NTCMuxSensor();
@@ -110,6 +114,7 @@ public:
 
     using namespace espurna::settings::internal;
     String ns = getSetting("ntcMuxNumber"); // number of ntcMux in system
+    DEBUG_MSG_P(PSTR("ntcMuxNumber: %s\n"), ns.c_str());
     if (ns == nullptr)
       return allConfigs;
     if (ns.equals(""))
@@ -123,7 +128,11 @@ public:
     for (int i = 1; i <= n; i++)
     {
       String ntcSettingKey = "ntcMux" + String(i);
-      allConfigs.push_back(getSetting(ntcSettingKey));
+      String ntcSettingValue = getSetting(ntcSettingKey);
+       DEBUG_MSG_P(PSTR("Config of %s -> %s\n"),
+                    ntcSettingKey.c_str(),
+                    ntcSettingValue.c_str());
+      allConfigs.push_back(ntcSettingValue);
     }
     return allConfigs;
   }

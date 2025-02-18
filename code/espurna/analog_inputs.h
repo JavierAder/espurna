@@ -178,7 +178,7 @@ public:
     // hook for possible adaptation via subclasing
     static void setCustomAnalogInputs(AnalogInputs *custom)
     {
-        _inst = custom;
+        AnalogInputs::_inst = custom;
     }
 
     // Helper ; TODO find a better place for it
@@ -212,8 +212,11 @@ public:
     {
         using namespace espurna::settings::internal;
         String config;
+        DEBUG_MSG_P(PSTR("Setup of Analog Inputs\n"));
+
         // FORMAT: analogMux=DelayBeforeRead(Microsecs),GPIO0,GPIO1....
         config = getSetting("analogMux");
+        DEBUG_MSG_P(PSTR("analogMux: %s\n"), config.c_str());
         setupMUX(splitConfig(config));
 
         // FORMAT: ADS1115xxx= f=delay,datarate,gain, mode
@@ -222,18 +225,22 @@ public:
         // gain= 0..5; 0 = +-6.144 V, 1 = +-4.096 V... +-5=0.256 V
         // mode= 0 continuous 1 single shot, currently not used; always in mode single shot
         config = getSetting("ADS1115GND");
+        DEBUG_MSG_P(PSTR("ADS1115GND: %s\n"), config.c_str());
         ads1115gnd = createADS1115Config(splitConfig(config));
         ads1115gnd.address = ADS1115_GND_ADDRESS;
 
         config = getSetting("ADS1115VDD");
+        DEBUG_MSG_P(PSTR("ADS1115VDD: %s\n"), config.c_str());
         ads1115vdd = createADS1115Config(splitConfig(config));
         ads1115vdd.address = ADS1115_VDD_ADDRESS;
 
         config = getSetting("ADS1115SDA");
+        DEBUG_MSG_P(PSTR("ADS1115SDA: %s\n"), config.c_str());
         ads1115sda = createADS1115Config(splitConfig(config));
         ads1115sda.address = ADS1115_SDA_ADDRESS;
 
         config = getSetting("ADS1115SCL");
+        DEBUG_MSG_P(PSTR("ADS1115SCL: %s\n"), config.c_str());
         ads1115scl = createADS1115Config(splitConfig(config));
         ads1115scl.address = ADS1115_SCL_ADDRESS;
     }
@@ -242,10 +249,15 @@ public:
     {
         using namespace espurna::settings::internal;
         if (configs.size() == 0)
+        {
+            DEBUG_MSG_P(PSTR("No config for generic mux found\n"));
             return;
+        }
+
         mux.configured = true;
         if (configs.size() < 2)
         {
+            DEBUG_MSG_P(PSTR("Incorrect number of parameters in configuration\n"));
             mux.error = SENSOR_ERROR_CONFIG;
             return;
         }
@@ -257,7 +269,8 @@ public:
             // locks gpio and mode
             if (!gpioLock(muxGPIO))
             {
-                // error, TODO debug print
+                DEBUG_MSG_P(PSTR("ERROR In Mux Configuration: Gpio %d can't be locked\n"),
+                            muxGPIO);
                 mux.error = SENSOR_ERROR_GPIO_USED;
                 return;
             }
@@ -273,11 +286,15 @@ public:
         config.configured = false;
         config.error = 0;
         if (configs.size() == 0)
+        {
+            DEBUG_MSG_P(PSTR("No configuration found for ADS1115 device. Skipped\n"));
             return config;
+        }
 
         config.configured = true;
         if (configs.size() != 4)
         {
+            DEBUG_MSG_P(PSTR("Incorrect number of parameters in configuration\n"));
             config.error = SENSOR_ERROR_CONFIG;
             return config;
         }
@@ -286,6 +303,15 @@ public:
         config.gain = convert<int>(configs[2]);
         config.mode = convert<int>(configs[3]);
         config.error = checkADS111Config(config);
+
+        if (config.error)
+        {
+            DEBUG_MSG_P(PSTR("Error in configuration for ADS1115 device\n"));
+        }
+        else
+        {
+            DEBUG_MSG_P(PSTR("ADS1115 device correctly configured!\n"));
+        }
         return config;
     }
     uint8_t checkADS111Config(ADS1115Config config)
@@ -436,8 +462,8 @@ protected:
         unsigned long firstCheck = ::millis();
         while (!conversionCompleteADS1115(config))
         {
-             unsigned long now = ::millis();
-            if ((now - firstCheck ) > timeout)
+            unsigned long now = ::millis();
+            if ((now - firstCheck) > timeout)
             {
                 result.error = SENSOR_ERROR_TIMEOUT;
                 return result;
@@ -510,7 +536,6 @@ protected:
         return (i2c_read_uint16(config.address, ADS1X15_REG_POINTER_CONFIG) & 0x8000) != 0;
     }
 
-
     int16_t getLastConversionResultsADS1115(ADS1115Config config)
     {
         // Read the conversion results
@@ -519,31 +544,29 @@ protected:
         return (int16_t)res;
     }
     // timeout in milliseconds for reading ADS1115 before assume error (connection i2c, etc)
-    //depends on datarate, currently only for oneshot mode
+    // depends on datarate, currently only for oneshot mode
     uint16_t getReadTimeoutADS1115(uint8_t datarate)
     {
         switch (datarate)
         {
         case 0:
-            return 150; //RATE_ADS1115_8SPS, 8 sps, 1 sample =125 mls;
+            return 150; // RATE_ADS1115_8SPS, 8 sps, 1 sample =125 mls;
         case 1:
-            return 100; //RATE_ADS1115_16SPS, 16 sps, 1 sample 62.5 nls;
+            return 100; // RATE_ADS1115_16SPS, 16 sps, 1 sample 62.5 nls;
         case 2:
-            return 60; //RATE_ADS1115_32SPS, 32 sps, 1 sample 32.25 mls;
+            return 60; // RATE_ADS1115_32SPS, 32 sps, 1 sample 32.25 mls;
         case 3:
-            return 30; //RATE_ADS1115_64SPS; 64 sps, 1 sample 15.625 mls
+            return 30; // RATE_ADS1115_64SPS; 64 sps, 1 sample 15.625 mls
         case 4:
-            return 20; //RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
+            return 20; // RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
         case 5:
-            return  10; //RATE_ADS1115_250SPS; 250 sps, 1 sample 4 mls
+            return 10; // RATE_ADS1115_250SPS; 250 sps, 1 sample 4 mls
         case 6:
-            return 5; //RATE_ADS1115_475SPS; 475 sps, 1 sample 2.11 mls
+            return 5; // RATE_ADS1115_475SPS; 475 sps, 1 sample 2.11 mls
         case 7:
-            return 4; //RATE_ADS1115_860SPS; 860 sps, 1 sample 1.16 mls
+            return 4; // RATE_ADS1115_860SPS; 860 sps, 1 sample 1.16 mls
         }
-        return 20; //RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
-
-
+        return 20; // RATE_ADS1115_128SPS; 128 sps, 1 sample 7.8125 mls
     }
     float computeVolts(adsGain_t gain, int16_t counts)
     {
@@ -639,7 +662,6 @@ AnalogInputs *AnalogInputs::Inst()
 {
     return AnalogInputs::_inst;
 }
-
 
 #ifndef __cpp_inline_variables
 constexpr int AnalogInputs::RawBits8266;

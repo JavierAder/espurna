@@ -1962,17 +1962,6 @@ void load() {
     }
 #endif
 
-#if RAW_ANALOG_SENSOR_SUPPORT
-    {
-        RawAnalogSensorConfig* rac = new RawAnalogSensorConfig();
-        std::vector<RawAnalogSensor *> rass = rac->getSensors();
-        for (RawAnalogSensor* ras : rass)
-        {
-            add(ras);
-        }
-    }
-#endif
-
 #if A02YYU_SUPPORT
     {
         const auto port = uartPort(A02YYU_PORT - 1);
@@ -2556,14 +2545,29 @@ void load() {
     }
 #endif
 
+#if RAW_ANALOG_SENSOR_SUPPORT
+    {
+        RawAnalogSensorConfig* rac = new RawAnalogSensorConfig();
+        std::vector<RawAnalogSensor *> raSensors = rac->getSensors();
+        for (std::size_t i = 0; i < raSensors.size(); i++)
+        {
+            RawAnalogSensor* sensor = raSensors[i];
+            DEBUG_MSG_P( PSTR("rawAnalogSensor added: %s\n"), sensor->description().c_str());
+            add(sensor);
+        }
+    }
+#endif
+
 #if NTC_MUX_SENSOR_SUPPORT
     {
        
        //Add all sensors NTC 
-       NTCMuxSensorConfig c;
-       std::vector<NTCMuxSensor *> ntcSensors = c.getSensors();
+       NTCMuxSensorConfig* c = new NTCMuxSensorConfig();
+       std::vector<NTCMuxSensor *> ntcSensors = c->getSensors();
        for (std::size_t i = 0; i < ntcSensors.size(); i++) {
             NTCMuxSensor* sensor = ntcSensors[i];
+            DEBUG_MSG_P( PSTR("ntcMuxSensor added: %s\n"), sensor->description().c_str());
+
             add(sensor);
         }
  
