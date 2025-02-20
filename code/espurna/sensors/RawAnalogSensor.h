@@ -8,7 +8,6 @@
 class RawAnalogSensor : public AnalogSensor
 {
 public:
-   
     unsigned char id() const override
     {
         return SENSOR_RAW_ANALOG_ID;
@@ -23,11 +22,9 @@ public:
     {
         char buffer[34];
         snprintf_P(buffer, sizeof(buffer),
-                PSTR("Raw Analog Sensor Dev: %2d Pin: %2d"), _in_device, _pin);
-            return String(buffer);
-
+                   PSTR("Raw Analog Sensor Dev: %2d Pin: %2d"), _in_device, _pin);
+        return String(buffer);
     }
-
 
     // Type for slot # index
     unsigned char type(unsigned char index) const override
@@ -93,30 +90,37 @@ public:
         std::vector<RawAnalogSensor *> rass;
         using namespace espurna::settings::internal;
         String configSensors;
-        // FORMAT:rawAnalogSensors=analog_devide_id1,channel1,mult1;analog_devide_id2,channel2,mult2;...
+        // FORMAT:rawAnalogSensors=RA1;RA2...
+        // FORMAT RAx = analog_devide_id1,channel1,mult1,delay,samples
+
         configSensors = getSetting("rawAnalogSensors");
-        DEBUG_MSG_P( PSTR("rawAnalogSensors: %s\n"), configSensors.c_str());
+        DEBUG_MSG_P(PSTR("rawAnalogSensors: %s\n"), configSensors.c_str());
 
         std::vector<String> configs = AnalogInputs::Inst()->splitConfig(configSensors, ';');
-        DEBUG_MSG_P( PSTR("rawAnalogSensors Configs number: %d\n"), configs.size());
+        DEBUG_MSG_P(PSTR("rawAnalogSensors Configs number: %d\n"), configs.size());
 
         for (String config : configs)
         {
-            DEBUG_MSG_P( PSTR("rawAnalogSensors Config: %s\n"), config.c_str());
+            DEBUG_MSG_P(PSTR("rawAnalogSensors Config: %s\n"), config.c_str());
 
             std::vector<String> dataSensor = AnalogInputs::Inst()->splitConfig(config);
-            if (dataSensor.size() != 3)
+            if (dataSensor.size() != 5)
             {
-                DEBUG_MSG_P( PSTR("Incorrect number of parameters in configuration\n"));
+                DEBUG_MSG_P(PSTR("Incorrect number of parameters in configuration\n"));
                 continue;
             }
             int device_id = convert<int>(dataSensor[0]);
             int channel = convert<int>(dataSensor[1]);
             double mult = convert<double>(dataSensor[2]);
-            RawAnalogSensor* ras = new RawAnalogSensor();
+            int samples = convert<int>(dataSensor[3]);
+            int delay = convert<int>(dataSensor[4]);
+
+            RawAnalogSensor *ras = new RawAnalogSensor();
             ras->setInDevice(device_id);
             ras->setPin(channel);
             ras->setMult(mult);
+            ras->setSamples(samples);
+            ras->setDelay(delay);
             rass.push_back(ras);
         }
 

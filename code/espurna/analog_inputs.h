@@ -226,23 +226,19 @@ public:
         // mode= 0 continuous 1 single shot, currently not used; always in mode single shot
         config = getSetting("ADS1115GND");
         DEBUG_MSG_P(PSTR("ADS1115GND: %s\n"), config.c_str());
-        ads1115gnd = createADS1115Config(splitConfig(config));
-        ads1115gnd.address = ADS1115_GND_ADDRESS;
+        ads1115gnd = createADS1115ConfigAndLock(splitConfig(config), ADS1115_GND_ADDRESS);
 
         config = getSetting("ADS1115VDD");
         DEBUG_MSG_P(PSTR("ADS1115VDD: %s\n"), config.c_str());
-        ads1115vdd = createADS1115Config(splitConfig(config));
-        ads1115vdd.address = ADS1115_VDD_ADDRESS;
+        ads1115vdd = createADS1115ConfigAndLock(splitConfig(config), ADS1115_VDD_ADDRESS);
 
         config = getSetting("ADS1115SDA");
         DEBUG_MSG_P(PSTR("ADS1115SDA: %s\n"), config.c_str());
-        ads1115sda = createADS1115Config(splitConfig(config));
-        ads1115sda.address = ADS1115_SDA_ADDRESS;
+        ads1115sda = createADS1115ConfigAndLock(splitConfig(config), ADS1115_SDA_ADDRESS);
 
         config = getSetting("ADS1115SCL");
         DEBUG_MSG_P(PSTR("ADS1115SCL: %s\n"), config.c_str());
-        ads1115scl = createADS1115Config(splitConfig(config));
-        ads1115scl.address = ADS1115_SCL_ADDRESS;
+        ads1115scl = createADS1115ConfigAndLock(splitConfig(config), ADS1115_SCL_ADDRESS);
     }
 
     void setupMUX(std::vector<String> configs)
@@ -277,6 +273,37 @@ public:
             pinMode(muxGPIO, OUTPUT);
             mux.gpios.push_back(muxGPIO);
         }
+    }
+
+    ADS1115Config createADS1115ConfigAndLock(std::vector<String> configs, uint8_t address)
+    {
+        ADS1115Config config = createADS1115Config(configs);
+        config.address = address;
+        if (!config.configured)
+            return config;
+        if (config.error)
+            return config;
+        // try lock and find i2c device in address
+        if (!findAndLock(address))
+        {
+            config.error = SENSOR_ERROR_I2C;
+        }
+        return config;
+    }
+
+    bool findAndLock(uint8_t address)
+    {
+        if (!i2cFind(address))
+        {
+            DEBUG_MSG_P(PSTR("Device I2C not found in address 0x%02X"), address);
+            return false;
+        }
+        if (!i2cLock(address))
+        {
+            DEBUG_MSG_P(PSTR("Device I2C  an't be locked in address 0x%02X"), address);
+            return false;
+        }
+        return true;
     }
 
     ADS1115Config createADS1115Config(std::vector<String> configs)
