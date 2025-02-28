@@ -42,10 +42,6 @@ Copyright (C) 2020-2022 by Maxim Prokhorov <prokhorov dot max at outlook dot com
     #include "analog_inputs.h"
 #endif
 
-#if RAW_ANALOG_SENSOR_SUPPORT
-    #include "sensors/RawAnalogSensor.h"
-#endif
-
 #if DUMMY_SENSOR_SUPPORT
     #include "sensors/DummySensor.h"
 #endif
@@ -231,6 +227,10 @@ Copyright (C) 2020-2022 by Maxim Prokhorov <prokhorov dot max at outlook dot com
 
 #if PZEM004TV30_SUPPORT
     #include "sensors/PZEM004TV30Sensor.h"
+#endif
+
+#if RAW_ANALOG_SENSOR_SUPPORT
+    #include "sensors/RawAnalogSensor.h"
 #endif
 
 #if NTC_MUX_SENSOR_SUPPORT
